@@ -1,0 +1,23 @@
+{
+  "name": "pd-backend",
+  "version": "1.0.0",
+  "description": "Back End Development Skill Assessment: Organisation Relations",
+  "main": "skeleton.js",
+  "scripts": {
+    "test": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmjcabuyadao/pd-backend.git"
+  },
+  "author": "J. Cabuyadao <jmjcabuyadao@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jmjcabuyadao/pd-backend/issues"
+  },
+  "homepage": "https://github.com/jmjcabuyadao/pd-backend#readme",
+  "dependencies": {
+    "mysql": "^2.17.1"
+  },
+  "devDependencies": {}
+}
