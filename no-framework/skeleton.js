@@ -30,7 +30,7 @@ http.createServer( async (request, response) => {
                 response.statusCode = 200;
                 response.statusMessage = 'Success';
                 response.setHeader('Content-Type', 'application/json');
-                response.write(JSON.stringify(results, "", "  "));
+                response.write(JSON.stringify(results, "", "  ") + "\n");
                 response.end();
             });
         } catch (e) {
