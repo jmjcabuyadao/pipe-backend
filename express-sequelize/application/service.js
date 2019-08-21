@@ -2,6 +2,7 @@ const OrgTreeModel = require('../model/OrgTree');
 const { Sequelize, Database } = require('../database/initialize')
 
 const findRelations = (organisation, page = 1, count = 100) => {
+    if (page <= 0) page = 1;
     Database.authenticate().then( () => {
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
         orgTree.findAll({
@@ -11,6 +12,8 @@ const findRelations = (organisation, page = 1, count = 100) => {
             order: [
                 ['node_one', 'ASC']
             ],
+            offset: (page-1)*count,
+            limit: count,
             attributes: [
                 ['node_one', 'organisation'],
                 ['branch_type', 'relationship']
@@ -37,13 +40,8 @@ const saveRelations = post => {
             let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
             orgTree.bulkCreate(relationships, 
                     { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] } )
-                    .then( ( result ) => {
-                        let count = 0;
-                        result.forEach( orgTree => {
-                            if (orgTree.org_tree.isNewRecord === true) count++;
-                        });
+                    .then( () => {
                         orgTree.findAll().then( rows => {
-                            console.log(`${count} relations added!`);
                             console.log(`Total Rows: ${rows.length}`);
                         }).catch( error => {
                             console.log(JSON.stringify(error));
