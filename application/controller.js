@@ -23,7 +23,7 @@ app.get('/organisation/:name/:page?/:countPerPage?',
 app.post('/', 
     async (request, response) => {
         const post = request.body;
-        [ statusMessage, statusCode ] = await saveRelations( post );
+        let [ statusMessage, statusCode ] = await saveRelations( post );
          
         response.statusMessage = statusMessage;
         response.statusCode = statusCode;

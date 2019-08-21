@@ -9,7 +9,9 @@
     "mysql2": "^1.6.5",
     "sequelize": "^5.15.2"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "jest": "^24.9.0"
+  },
   "scripts": {
     "test": "npm run test"
   },

@@ -39,102 +39,127 @@ const saveRelations = post => {
         Database.authenticate().then( () => {
             let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
             orgTree.bulkCreate(relationships, 
-                    { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] } )
-                    .then( () => {
-                        orgTree.findAll().then( rows => {
-                            console.log(`Total Rows: ${rows.length}`);
-                        }).catch( error => {
-                            console.log(JSON.stringify(error));
-                        });
+                { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] } )
+                .then( () => {
+                    orgTree.findAll().then( rows => {
+                        statusMessage = `Total Rows: ${rows.length}`;
+                        console.log(statusMessage);
+                    }).catch( error => {
+                        statusMessage = `Error: ${JSON.stringify(error)}`;
+                        statusCode = err.statusCode;
+
+                        console.error(statusMessage);
+                    });
             });
         }).catch( err => {
-            console.error('Unable to connect to the database: ', err);
-            
-            statusCode = err.statusCode;
             statusMessage = `Unable to establish connection: ${JSON.stringify(err)}`;
+            statusCode = err.statusCode;
+
+            console.error(statusMessage);
         });
+    }).catch( error => {
+        statusMessage = `Error: ${JSON.stringify(error)}`;
+        statusCode = err.statusCode;
+
+        console.error(statusMessage);
     });
 
     return [ statusMessage, statusCode ];
 }
 
-const establishRelationships = input => {
-    return new Promise( async (resolve, reject) => {
-        let parents = await setDaughters(input);
-        let daughters = await setParents(parents);
-        let sisters = await setSisters(daughters);
-
-        resolve([...parents, ...daughters, ...sisters]);
-    }); 
+const establishRelationships = async input => {
+    let parents = await setParents(input).then( parents => { return parents; } );
+    let daughters = await setDaughters(parents).then( daughters => { return daughters; } );
+    let sisters = await setSisters(daughters).then( sisters => { return sisters; } );
+    
+    return [...parents, ...daughters, ...sisters];
 }
 
 /**
  * Sets parent relationships
  * @param {JSON} inputObject 
  */
-const setDaughters = inputObject => {
+const setParents = inputObject => {
     let relations = []
     let parent = '';
     let daughters = [];
 
-    if (inputObject.hasOwnProperty('org_name')) {
-        parent = inputObject.org_name;
-    }
-            
-    if (inputObject.hasOwnProperty('daughters')) {
-        daughters = inputObject.daughters;
-    }
-
-    for (let i = 0; i < daughters.length; i++) {
-        let daughter = daughters[i];
-        let parentRelationship = relateNodes(parent, daughter.org_name, 'parent');
+    return new Promise( async (resolve, reject) => {
+        try {
+            if (inputObject.hasOwnProperty('org_name')) {
+                parent = inputObject.org_name;
+            }
+                    
+            if (inputObject.hasOwnProperty('daughters')) {
+                daughters = inputObject.daughters;
+            }
         
-        relations.push(parentRelationship);
+            for (let i = 0; i < daughters.length; i++) {
+                let daughter = daughters[i];
+                let parentRelationship = relateNodes(parent, daughter.org_name, 'parent');
+                
+                relations.push(parentRelationship);
+        
+                let newRelations = await setParents(daughter).then( result => { return result; } );
+                relations = [...relations, ...newRelations];
+            }
 
-        let newRelations = setDaughters(daughter);
-        relations = [...relations, ...newRelations];
-    }
-
-    return relations;
+            resolve(relations);
+        } catch (ex) {
+            reject(ex);
+        }
+    });
 }
 
 /**
  * Sets child relationships by flipping parent relationships
  * @param {array} parentsArray 
  */
-const setParents = parentsArray => {
+const setDaughters = parentsArray => {
     let relations = [];
 
-    for (let i = 0; i < parentsArray.length; i++) {
-        let daughter = parentsArray[i].nodeTwo;
-        let parent = parentsArray[i].nodeOne;
-        let daughterRelationship = relateNodes(daughter, parent, 'daughter');
+    return new Promise( (resolve, reject) => {
+        try {
+            for (let i = 0; i < parentsArray.length; i++) {
+                let daughter = parentsArray[i].nodeTwo;
+                let parent = parentsArray[i].nodeOne;
+                let daughterRelationship = relateNodes(daughter, parent, 'daughter');
+        
+                relations.push(daughterRelationship);
+            }
 
-        relations.push(daughterRelationship);
-    }
-
-    return relations;
+            resolve(relations);
+        } catch (ex) {
+            reject(ex);
+        }
+    });
 }
 
 /**
  * Sets sibling relationships
- * @param {array} parentsArray 
+ * @param {array} daughters 
  */
-const setSisters = parentsArray => {
+const setSisters = daughters => {
     let relations = [];
-    parentsArray.forEach( leftSister => {
-        parentsArray.forEach( rightSister => {
-            if (areSisters(leftSister, rightSister) === false) return;
+    return new Promise( (resolve, reject) => {
+        try {
+            daughters.forEach( leftSister => {
+                daughters.forEach( rightSister => {
+                    if (areSisters(leftSister, rightSister) === false) return;
+        
+                    let sisterRelationship = JSON.stringify(relateNodes(leftSister.nodeOne, rightSister.nodeOne, 'sister'));
+                    // Sister relationship not yet in array
+                    if (relations.includes(sisterRelationship) === false) {
+                        relations.push(sisterRelationship);
+                    }
+                });
+            });
 
-            let sisterRelationship = JSON.stringify(relateNodes(leftSister.nodeOne, rightSister.nodeOne, 'sister'));
-            // Sister relationship not yet in array
-            if (relations.includes(sisterRelationship) === false) {
-                relations.push(sisterRelationship);
-            }
-        });
+            resolve(sortRelations(relations));
+        } catch (ex) {
+            reject(ex);
+        }
     });
-    
-    return sortRelations(relations);
 }
 
 /**
