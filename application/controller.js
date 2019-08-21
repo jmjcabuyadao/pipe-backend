@@ -12,14 +12,23 @@ app.use(bodyParser.json());
 
 /** @TODO: Resolve asynchronicity */
 app.get('/organisation/:name/:page?/:countPerPage?', 
-    (request, response) => {
+    async (request, response) => {
         const params = request.params;
-        const results = findRelations( params.name, params.page, params.countPerPage ); // async function, must await
+        const results = await findRelations( params.name, params.page, params.countPerPage )
+                                .then( rows => { return rows; } ); // async function, must await
         
-        console.log(results); // called before findRelations
+        if (typeof results == 'object' && results.length >= 1) {
+            response.status(200)
+            response.write(JSON.stringify(results, null, 1));
+        } else if (typeof results == 'number' && results === 500) {
+            response.status(results)
+            response.write(`Something went wrong :(\n`);
+        }
+        response.end();
     }
 );
 
+/** @TODO: Resolve asynchronicity */
 app.post('/', 
     async (request, response) => {
         const post = request.body;

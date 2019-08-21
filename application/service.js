@@ -3,9 +3,9 @@ const { Sequelize, Database } = require('../database/initialize')
 
 const findRelations = (organisation, page = 1, count = 100) => {
     if (page <= 0) page = 1;
-    Database.authenticate().then( () => {
+    return Database.authenticate().then( () => {
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
-        orgTree.findAll({
+        let rows = orgTree.findAll({
             where: {
                 node_two: organisation
             },
@@ -17,19 +17,18 @@ const findRelations = (organisation, page = 1, count = 100) => {
             attributes: [
                 ['node_one', 'organisation'],
                 ['branch_type', 'relationship']
-            ]
-        }).then( rows => {
-            console.log(JSON.stringify(rows, null, 4));
-
-            return rows;
+            ],
+            raw: true
+        }).then( result => {
+            return result;
         });
-    }).catch( err => {
-        console.error('Unable to connect to the database: ', err);
-    });
 
-    /**
-     * For pagination, result is an array of arrays with 100 objects each and index is page number
-     */
+        return rows;
+    }).catch( err => {
+        console.error(`Database error: Unable to establish connection ${JSON.stringify(err)}`);
+
+        return 500;
+    });
 }
 
 const saveRelations = post => {
@@ -113,16 +112,16 @@ const setParents = inputObject => {
 
 /**
  * Sets child relationships by flipping parent relationships
- * @param {array} parentsArray 
+ * @param {array} parents 
  */
-const setDaughters = parentsArray => {
+const setDaughters = parents => {
     let relations = [];
 
     return new Promise( (resolve, reject) => {
         try {
-            for (let i = 0; i < parentsArray.length; i++) {
-                let daughter = parentsArray[i].nodeTwo;
-                let parent = parentsArray[i].nodeOne;
+            for (let i = 0; i < parents.length; i++) {
+                let daughter = parents[i].nodeTwo;
+                let parent = parents[i].nodeOne;
                 let daughterRelationship = relateNodes(daughter, parent, 'daughter');
         
                 relations.push(daughterRelationship);
@@ -143,11 +142,11 @@ const setSisters = daughters => {
     let relations = [];
     return new Promise( (resolve, reject) => {
         try {
-            daughters.forEach( leftSister => {
-                daughters.forEach( rightSister => {
-                    if (areSisters(leftSister, rightSister) === false) return;
+            daughters.forEach( leftDaughter => {
+                daughters.forEach( rightDaughter => {
+                    if (areSisters(leftDaughter, rightDaughter) === false) return;
         
-                    let sisterRelationship = JSON.stringify(relateNodes(leftSister.nodeOne, rightSister.nodeOne, 'sister'));
+                    let sisterRelationship = JSON.stringify(relateNodes(leftDaughter.nodeOne, rightDaughter.nodeOne, 'sister'));
                     // Sister relationship not yet in array
                     if (relations.includes(sisterRelationship) === false) {
                         relations.push(sisterRelationship);
@@ -178,20 +177,20 @@ const relateNodes = (firstOrg, secondOrg, relationshipType) => {
 
 /**
  * Check if two organisations are sisters (i.e. same level on the tree)
- * @param {string} leftSister 
- * @param {string} rightSister 
+ * @param {string} leftDaughter 
+ * @param {string} rightDaughter 
  */
-const areSisters = (leftSister, rightSister) => {
+const areSisters = (leftDaughter, rightDaughter) => {
     // Refers to the same org
-    if ( (leftSister.nodeOne == rightSister.nodeOne) && (leftSister.nodeTwo == rightSister.nodeTwo) ) {
+    if ( (leftDaughter.nodeOne == rightDaughter.nodeOne) && (leftDaughter.nodeTwo == rightDaughter.nodeTwo) ) {
         return false;
     }
     // One org is a parent or child of the other
-    if ( leftSister.nodeOne == rightSister.nodeTwo || leftSister.nodeTwo == rightSister.nodeOne ) {
+    if ( leftDaughter.nodeOne == rightDaughter.nodeTwo || leftDaughter.nodeTwo == rightDaughter.nodeOne ) {
         return false;
     }
     // Not same parent or not same daughter
-    if ( leftSister.nodeTwo != rightSister.nodeTwo ) {
+    if ( leftDaughter.nodeTwo != rightDaughter.nodeTwo ) {
         return false;
     }
 
