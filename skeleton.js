@@ -1,32 +1,44 @@
 'use strict';
 
-const fs = require('fs');
+const http = require('http');
 const mysql = require('mysql');
 
 let inputString = "";
 let inputJson = {};
 
-fs.readFile('./input.json', (error, buffer) => {
-    if (error) {
-        console.error(e);
-    }
+http.createServer( async (request, response) => {
+    const { headers, method, url } = request;
+    let body = [];
+    let results = [];
+    request.on('error', (err) => {
+        console.error(err);
+    }).on('data', (chunk) => {
+        body.push(chunk);
+    }).on('end', () => {
+        try {
+            body = Buffer.concat(body).toString();
+            let inputJson = JSON.parse(body);
+      
+            if (inputJson.hasOwnProperty('daughters') === false) {
+                console.log(`No organisation relationships found!`);
+      
+                return;
+            }
     
-    try {
-        inputString = buffer.toString();
-        inputJson = JSON.parse(inputString);
-
-        if (inputJson.hasOwnProperty('daughters') === false) {
-            console.log(`No organisation relationships found!`);
-
-            return;
+            insertRelations(inputJson);
+            retrieveRelations('Black banana').then( (results) => {
+                response.statusCode = 200;
+                response.statusMessage = 'Success';
+                response.setHeader('Content-Type', 'application/json');
+                response.write(JSON.stringify(results, "", "  "));
+                response.end();
+            });
+        } catch (e) {
+            console.error(e);
         }
+    });
 
-        insertRelations(inputJson);
-        retrieveRelations('Black banana');
-    } catch (e) {
-        console.error(e);
-    }
-});
+}).listen(8000, 'localhost');
 
 const insertRelations = async (input) => {
     let parents = setDaughters(input);
@@ -43,7 +55,7 @@ const insertRelations = async (input) => {
 
     relationships.forEach( async branch => {
         let insertQuery =  `INSERT INTO org_tree (node_one, node_two, branch_type) VALUES ('${branch.org}', '${branch.of}', '${branch.is_a}');`;
-        await new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             dbConnection.query(
                 insertQuery,
                 (error, results) => {
@@ -54,15 +66,13 @@ const insertRelations = async (input) => {
                         
                         return;
                     }
-                    console.log(results)
 
                     return resolve(this);
                 }
             );
-            }).catch(error => {
-                console.error(error);
-            });
-        dbConnection.destroy();
+        }).catch(error => {
+            console.error(error);
+        });
     });
 }
 
@@ -74,6 +84,7 @@ const retrieveRelations = async (targetNode) => {
     });
 
     let selectQuery = `SELECT * FROM org_tree WHERE node_two = LOWER('${targetNode}') ORDER BY node_one ASC;`;
+    //let selectQuery = `SELECT * FROM org_tree ORDER BY id ASC;`;
     return new Promise( (resolve, reject) => {
         dbConnection.query(
             selectQuery,
@@ -83,9 +94,8 @@ const retrieveRelations = async (targetNode) => {
 
                     throw err;
                 }
-                console.log(results)
 
-                return resolve(this);
+                resolve(parseResults(results));
             }
         );
     }).catch(error => {
@@ -182,6 +192,19 @@ const sortRelations = relations => {
     });
 }
 
+const parseResults = results => {
+    let resultsArray = [];
+    results.forEach( (rel) => {
+        let resultRelation = {
+            organisation: rel.node_one,
+            relationship: rel.branch_type
+        }
+        resultsArray.push(resultRelation);
+    });
+
+    return resultsArray;
+}
+
 const connectToDatabase = connection => {
     return new Promise(async (resolve, reject) => {
         await connection.query("SELECT NOW()",
@@ -190,7 +213,6 @@ const connectToDatabase = connection => {
                     console.error(JSON.stringify(err));
                     throw err;
                 }
-                console.log(results)
 
                 return resolve(this);
             }
@@ -200,7 +222,7 @@ const connectToDatabase = connection => {
 
 const createDatabaseConnection = async () => {
     let connection = mysql.createConnection({
-        host: '127.0.0.1',
+        host: 'localhost',
         port: 3306,
         user: 'root',
         password: 'Password1',
