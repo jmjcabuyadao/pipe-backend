@@ -10,40 +10,43 @@ const { findRelations, saveRelations } = require('./service');
 const app = Express();
 app.use(bodyParser.json());
 
-/** @TODO: Resolve asynchronicity */
+// Endpoint #2: Returns all relations for one organisation
 app.get('/organisation/:name/:page?/:countPerPage?', 
     async (request, response) => {
         const params = request.params;
         const results = await findRelations( params.name, params.page, params.countPerPage )
-                                .then( rows => { return rows; } ); // async function, must await
-        
-        if (typeof results == 'object' && results.length >= 1) {
-            response.status(200)
+                                                    .then( rows => { return rows; } );
+
+        if (typeof results == 'object') {
+            response.statusCode = 200;
             response.write(JSON.stringify(results, null, 1));
-        } else if (typeof results == 'number' && results === 500) {
-            response.status(results)
-            response.write(`Something went wrong :(\n`);
+        } else {
+            response.statusCode = 500;
+            response.write(results);
         }
         response.end();
     }
 );
 
-/** @TODO: Resolve asynchronicity */
+/** Endpoint #1: Add organisation relations in one request **/
 app.post('/', 
-    async (request, response) => {
+    (request, response) => {
         const post = request.body;
-        let [ statusMessage, statusCode ] = await saveRelations( post );
-         
-        response.statusMessage = statusMessage;
-        response.statusCode = statusCode;
-        response.end();
+        saveRelations( post )
+            .then( apiResponse => { 
+                response.statusMessage = apiResponse.statusMessage;
+                response.statusCode = apiResponse.statusCode;
+                response.write(apiResponse.statusMessage);
+                response.end();
+            }).catch( error => {
+                response.statusMessage = error.message;
+                response.statusCode = error.code;
+                response.write(JSON.stringify(error));
+                response.end();
+            });
     }
 );
 
 app.listen(port, host, () => {
 	console.log(`Server running at http://${host}:${port}/`);
 });
-
-const ApiResponse = responseBody => {
-
-};

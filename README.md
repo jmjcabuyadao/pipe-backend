@@ -1,4 +1,4 @@
-# Organization Relationships
+# Organisation Relationships
 
 Back-end development skill assessment task
 

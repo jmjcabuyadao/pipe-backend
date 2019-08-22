@@ -3,7 +3,12 @@ const { Sequelize, Database } = require('../database/initialize')
 
 const findRelations = (organisation, page = 1, count = 100) => {
     if (page <= 0) page = 1;
-    return Database.authenticate().then( () => {
+    return Database.authenticate().catch( err => {
+        let message = `Database error: Unable to establish connection ${JSON.stringify(err)}`;
+        console.error(message);
+
+        return message;
+    }).then( () => {
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
         let rows = orgTree.findAll({
             where: {
@@ -20,56 +25,61 @@ const findRelations = (organisation, page = 1, count = 100) => {
             ],
             raw: true
         }).then( result => {
+
             return result;
         });
 
         return rows;
-    }).catch( err => {
-        console.error(`Database error: Unable to establish connection ${JSON.stringify(err)}`);
-
-        return 500;
     });
 }
 
-const saveRelations = post => {
-    let statusCode = 200;
-    let statusMessage = '';
-    establishRelationships(post).then( relationships => {
-        Database.authenticate().then( () => {
-            let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
-            orgTree.bulkCreate(relationships, 
-                { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] } )
-                .then( () => {
-                    orgTree.findAll().then( rows => {
-                        statusMessage = `Total Rows: ${rows.length}`;
-                        console.log(statusMessage);
-                    }).catch( error => {
-                        statusMessage = `Error: ${JSON.stringify(error)}`;
-                        statusCode = err.statusCode;
+const saveRelations = async post => {
+    let ApiResponse = {};
+    await Database.authenticate().then( async () => {
+        let relationships = await establishRelationships(post).then( relationships => { return relationships } );
+        let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
+        await orgTree.bulkCreate( relationships,
+            { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] }
+        ).then( async () => {
+            ApiResponse = await orgTree.findAll().then( rows => {
+                statusMessage = `Total Rows: ${rows.length}`;
 
-                        console.error(statusMessage);
-                    });
+                return parseApiResponse(200, statusMessage);
+            }).catch( error => {
+                statusMessage = `Error: ${JSON.stringify(error)}`;
+                statusCode = error.statusCode;
+                
+                console.error(statusMessage);
+                return parseApiResponse(statusCode, statusMessage);
             });
-        }).catch( err => {
-            statusMessage = `Unable to establish connection: ${JSON.stringify(err)}`;
-            statusCode = err.statusCode;
-
-            console.error(statusMessage);
+        }).catch( transactionError => {
+            console.error(JSON.stringify(transactionError));
         });
-    }).catch( error => {
-        statusMessage = `Error: ${JSON.stringify(error)}`;
-        statusCode = err.statusCode;
-
-        console.error(statusMessage);
     });
 
-    return [ statusMessage, statusCode ];
+    return ApiResponse;
+}
+
+const parseApiResponse = (message = "Transaction completed!", code = 200) => {
+    return {
+        statusMessage: message,
+        statusCode: code
+    }
 }
 
 const establishRelationships = async input => {
-    let parents = await setParents(input).then( parents => { return parents; } );
-    let daughters = await setDaughters(parents).then( daughters => { return daughters; } );
-    let sisters = await setSisters(daughters).then( sisters => { return sisters; } );
+    let parents = daughters = sisters = [];
+    await setParents(input).then( parentsRel => { 
+        parents = parentsRel;
+        setDaughters( parents ).then ( daughtersRel => {
+            daughters = daughtersRel;
+            setSisters( daughtersRel ).then( sistersRel => {
+                sisters = sistersRel;
+
+                return;
+            });
+        });
+    });
     
     return [...parents, ...daughters, ...sisters];
 }
