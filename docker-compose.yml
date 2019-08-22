@@ -1,0 +1,36 @@
+version: '3'
+services: 
+  mysql_db:
+    image: mysql:5.7.27
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'pipedrive'
+      MYSQL_USER: 'root'
+      MYSQL_PASSWORD: 'Password1'
+      MYSQL_ROOT_PASSWORD: 'Password1'
+    ports:
+      - '3506:3306'
+    expose:
+      - '3306'
+    volumes:
+      - mysql_db:/var/lib/mysql
+  node_app:
+    build: .
+    command: npm run start
+    volumes:
+      - .:/usr/app/
+      - /usr/app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql_db
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 3000
+      MYSQL_HOST: 192.168.56.1
+      MYSQL_PORT: 3506
+      MYSQL_DATABASE: 'pipedrive'
+      MYSQL_USER: 'root'
+      MYSQL_PASSWORD: 'Password1'
+volumes:
+  mysql_db:  

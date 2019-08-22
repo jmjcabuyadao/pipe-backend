@@ -5,8 +5,13 @@ Back-end development skill assessment task
 ## Getting Started
 
 ### Prerequisites
+* [Git](https://git-scm.com/docs)
+* [Docker](https://docs.docker.com/install/)
 
 ### Installing
+1. Clone this repository to your machine. Navigate to root folder `pd-backend/`.
+2. Open the `Dockerfile` and configure the environment variables and credentials for the database.
+3. Run `docker-compose up --build --detach` to install the application.
 
 ## Running the tests
 
