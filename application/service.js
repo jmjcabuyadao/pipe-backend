@@ -3,12 +3,7 @@ const { Sequelize, Database } = require('../database/initialize')
 
 const findRelations = (organisation, page = 1, count = 100) => {
     if (page <= 0) page = 1;
-    return Database.authenticate().catch( err => {
-        let message = `Database error: Unable to establish connection ${JSON.stringify(err)}`;
-        console.error(message);
-
-        return message;
-    }).then( () => {
+    return Database.authenticate().then( () => {
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
         let rows = orgTree.findAll({
             where: {
@@ -27,37 +22,50 @@ const findRelations = (organisation, page = 1, count = 100) => {
         }).then( result => {
 
             return result;
+        }).catch ( error => {
+
+            throw new Error(error);
         });
 
         return rows;
+    }).catch( err => {
+        let message = `Database error: Unable to establish connection ${JSON.stringify(err)}`;
+        console.error(message);
+
+        return message;
     });
 }
 
 const saveRelations = async post => {
-    let ApiResponse = {};
+    let apiResponse = {};
+    let oldCount = newCount = 0;
+
     await Database.authenticate().then( async () => {
         let relationships = await establishRelationships(post).then( relationships => { return relationships } );
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
-        await orgTree.bulkCreate( relationships,
-            { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] }
-        ).then( async () => {
-            ApiResponse = await orgTree.findAll().then( rows => {
-                statusMessage = `Total Rows: ${rows.length}`;
+        let error = '';
 
-                return parseApiResponse(200, statusMessage);
-            }).catch( error => {
-                statusMessage = `Error: ${JSON.stringify(error)}`;
-                statusCode = error.statusCode;
-                
-                console.error(statusMessage);
-                return parseApiResponse(statusCode, statusMessage);
-            });
-        }).catch( transactionError => {
-            console.error(JSON.stringify(transactionError));
-        });
+        oldCount = await orgTree.count();
+        newCount = await orgTree.bulkCreate( relationships, 
+                        { fields: [ 'nodeOne', 'nodeTwo', 'branchType' ], updateOnDuplicate: [ 'branchType'] } )
+                        .then( () => { return orgTree.count(); })
+                        .catch( (err) => { error = err; return 0; } );
+
+        message = `Total rows inserted: ${newCount - oldCount}`;
+        if (newCount === 0) {
+            message = `An error occurred while inserting to database: ${error}`;
+        }
+        
+        console.log(message);
+        apiResponse = parseApiResponse(message, 200);
+    }).catch( err => {
+        message = `Database error: Unable to establish connection ${JSON.stringify(err)}`;
+        console.error(message);
+
+        apiResponse = parseApiResponse(message, err.errno);
     });
 
-    return ApiResponse;
+    return apiResponse;
 }
 
 const parseApiResponse = (message = "Transaction completed!", code = 200) => {
@@ -68,18 +76,9 @@ const parseApiResponse = (message = "Transaction completed!", code = 200) => {
 }
 
 const establishRelationships = async input => {
-    let parents = daughters = sisters = [];
-    await setParents(input).then( parentsRel => { 
-        parents = parentsRel;
-        setDaughters( parents ).then ( daughtersRel => {
-            daughters = daughtersRel;
-            setSisters( daughtersRel ).then( sistersRel => {
-                sisters = sistersRel;
-
-                return;
-            });
-        });
-    });
+    let parents = await setParents(input).then( parents => { return parents; } );
+    let daughters = await setDaughters(parents).then( daughters => { return daughters; } );
+    let sisters = await setSisters(daughters).then( sisters => { return sisters; } );
     
     return [...parents, ...daughters, ...sisters];
 }

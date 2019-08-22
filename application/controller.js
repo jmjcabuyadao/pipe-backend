@@ -15,35 +15,32 @@ app.get('/organisation/:name/:page?/:countPerPage?',
     async (request, response) => {
         const params = request.params;
         const results = await findRelations( params.name, params.page, params.countPerPage )
-                                                    .then( rows => { return rows; } );
+                                                    .then( rows => { return rows; } )
+                                                    .catch( error => 
+                                                        { response.status(500).send(JSON.stringify(error)).end(); }
+                                                    );
 
-        if (typeof results == 'object') {
-            response.statusCode = 200;
-            response.write(JSON.stringify(results, null, 1));
+        if (typeof results == 'object' && results.length >= 1) {
+            response.status(200).send(JSON.stringify(results, null, 1)).end();
+        } else if (typeof results == 'object' && results.length == 0) {
+            response.status(200).send(`No page #${params.page} found for ${params.name}\n`).end();
         } else {
-            response.statusCode = 500;
-            response.write(results);
+            response.status(500).send(results).end();
         }
-        response.end();
     }
 );
 
 /** Endpoint #1: Add organisation relations in one request **/
 app.post('/', 
-    (request, response) => {
+    async (request, response) => {
         const post = request.body;
-        saveRelations( post )
-            .then( apiResponse => { 
-                response.statusMessage = apiResponse.statusMessage;
-                response.statusCode = apiResponse.statusCode;
-                response.write(apiResponse.statusMessage);
-                response.end();
-            }).catch( error => {
-                response.statusMessage = error.message;
-                response.statusCode = error.code;
-                response.write(JSON.stringify(error));
-                response.end();
+        try {
+            saveRelations( post ).then( apiResponse => { 
+                response.status(apiResponse.statusCode).send(apiResponse.statusMessage).end();
             });
+        } catch (error) {
+            response.status(error.errno).send(error.message).end();
+        }
     }
 );
 

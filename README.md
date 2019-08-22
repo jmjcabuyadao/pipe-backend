@@ -1,4 +1,4 @@
-# Organisation Relationships
+# Organization Relationships
 
 Back-end development skill assessment task
 
@@ -19,9 +19,10 @@ Back-end development skill assessment task
 * [Express](https://expressjs.com/)
 * [Sequelize](https://sequelize.org/master/)
 * [MySQL](https://dev.mysql.com/doc/)
+* [Chai]
 
 ## Authors
 
-* **J. Cabuyadao** - [GitHub Account](https://github.com/jmjcabuyadao)
+* **J. Cabuyadao** - [GitHub](https://github.com/jmjcabuyadao) | [LinkedIn](https://www.linkedin.com/in/jmjcabuyadao)
 
 ## License
