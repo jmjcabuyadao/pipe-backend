@@ -1,8 +1,7 @@
 const OrgTreeModel = require('../model/OrgTree');
-const { Sequelize, Database } = require('../database/initialize')
+const { Sequelize, Database } = require('../model/Database')
 
 const findRelations = (organisation, page = 1, count = 100) => {
-    if (page <= 0) page = 1;
     return Database.authenticate().then( () => {
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
         let rows = orgTree.findAll({
@@ -15,8 +14,8 @@ const findRelations = (organisation, page = 1, count = 100) => {
             offset: (page-1)*count,
             limit: count,
             attributes: [
-                ['node_one', 'organisation'],
-                ['branch_type', 'relationship']
+                ['branch_type', 'relationship_type'],
+                ['node_one', 'org_name']
             ],
             raw: true
         }).then( result => {
@@ -29,8 +28,8 @@ const findRelations = (organisation, page = 1, count = 100) => {
 
         return rows;
     }).catch( err => {
-        let message = `Database error: Unable to establish connection ${JSON.stringify(err)}`;
-        console.error(message);
+        let message = `Database error: \n\t\t${err}`;
+        console.error(err);
 
         return message;
     });
@@ -51,7 +50,7 @@ const saveRelations = async post => {
                         .then( () => { return orgTree.count(); })
                         .catch( (err) => { error = err; return 0; } );
 
-        message = `Total rows inserted: ${newCount - oldCount}`;
+        message = `Total rows inserted: ${newCount - oldCount}\n`;
         if (newCount === 0) {
             message = `An error occurred while inserting to database: ${error}`;
         }

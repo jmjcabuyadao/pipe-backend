@@ -14,7 +14,13 @@ app.use(bodyParser.json());
 app.get('/organisation/:name/:page?/:countPerPage?', 
     async (request, response) => {
         const params = request.params;
-        const results = await findRelations( params.name, params.page, params.countPerPage )
+
+        let page = params.page;
+        if (isNaN(page) || page <= 0) page = 1;
+        let perPage = params.countPerPage;
+        if (isNaN(perPage) || perPage <= 0 || perPage > 100) perPage = 100;
+
+        const results = await findRelations( params.name, parseInt(page), parseInt(perPage) )
                                                     .then( rows => { return rows; } )
                                                     .catch( error => 
                                                         { response.status(500).send(JSON.stringify(error)).end(); }
@@ -23,7 +29,7 @@ app.get('/organisation/:name/:page?/:countPerPage?',
         if (typeof results == 'object' && results.length >= 1) {
             response.status(200).send(JSON.stringify(results, null, 1)).end();
         } else if (typeof results == 'object' && results.length == 0) {
-            response.status(200).send(`No page #${params.page} found for ${params.name}\n`).end();
+            response.status(200).send(`No page #${page} found for ${params.name}\n`).end();
         } else {
             response.status(500).send(results).end();
         }

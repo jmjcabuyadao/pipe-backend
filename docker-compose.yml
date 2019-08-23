@@ -4,19 +4,19 @@ services:
     image: mysql:5.7.27
     restart: always
     environment:
-      MYSQL_DATABASE: 'pipedrive'
-      MYSQL_USER: 'root'
-      MYSQL_PASSWORD: 'Password1'
-      MYSQL_ROOT_PASSWORD: 'Password1'
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
-      - '3506:3306'
+      - '3606:3306'
     expose:
-      - '3306'
+      - '3606'
     volumes:
       - mysql_db:/var/lib/mysql
   node_app:
     build: .
-    command: npm run start
+    command: npm start
     volumes:
       - .:/usr/app/
       - /usr/app/node_modules
@@ -25,12 +25,12 @@ services:
     depends_on:
       - mysql_db
     environment:
-      SERVER_HOST: 0.0.0.0
-      SERVER_PORT: 3000
-      MYSQL_HOST: 192.168.56.1
-      MYSQL_PORT: 3506
-      MYSQL_DATABASE: 'pipedrive'
-      MYSQL_USER: 'root'
-      MYSQL_PASSWORD: 'Password1'
+      SERVER_HOST: ${SERVER_HOST}
+      SERVER_PORT: ${SERVER_PORT}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PORT: ${MYSQL_PORT}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 volumes:
   mysql_db:  
