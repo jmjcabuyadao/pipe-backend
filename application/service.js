@@ -40,7 +40,12 @@ const saveRelations = async post => {
     let oldCount = newCount = 0;
 
     await Database.authenticate().then( async () => {
-        let relationships = await establishRelationships(post).then( relationships => { return relationships } );
+        let relationships = await establishRelationships(post);
+        
+        if (relationships.length <= 0) {
+            return parseApiResponse();
+        }
+        
         let orgTree = OrgTreeModel(Database, Sequelize.DataTypes);
         let error = '';
 
@@ -75,11 +80,15 @@ const parseApiResponse = (message = "Transaction completed!", code = 200) => {
 }
 
 const establishRelationships = async input => {
-    let parents = await setParents(input).then( parents => { return parents; } );
-    let daughters = await setDaughters(parents).then( daughters => { return daughters; } );
-    let sisters = await setSisters(daughters).then( sisters => { return sisters; } );
-    
-    return [...parents, ...daughters, ...sisters];
+    try {
+        let parents = await setParents(input);
+        let daughters = await setDaughters(parents);
+        let sisters = await setSisters(daughters);
+        
+        return [...parents, ...daughters, ...sisters];
+    } catch (error) {
+        return [];
+    }
 }
 
 /**
@@ -107,7 +116,7 @@ const setParents = inputObject => {
                 
                 relations.push(parentRelationship);
         
-                let newRelations = await setParents(daughter).then( result => { return result; } );
+                let newRelations = await setParents(daughter);
                 relations = [...relations, ...newRelations];
             }
 
