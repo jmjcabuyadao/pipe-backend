@@ -14,17 +14,18 @@ app.use(bodyParser.json());
 app.get('/organisation/:name/:page?/:countPerPage?', 
     async (request, response) => {
         const params = request.params;
+        const results = false;
 
         let page = params.page;
         if (isNaN(page) || page <= 0) page = 1;
         let perPage = params.countPerPage;
         if (isNaN(perPage) || perPage <= 0 || perPage > 100) perPage = 100;
 
-        const results = await findRelations( params.name, parseInt(page), parseInt(perPage) )
-                                                    .then( rows => { return rows; } )
-                                                    .catch( error => 
-                                                        { response.status(500).send(JSON.stringify(error)).end(); }
-                                                    );
+        try {
+            results = await findRelations( params.name, parseInt(page), parseInt(perPage) )
+        } catch (error) {
+            response.status(500).send(JSON.stringify(error)).end();
+        }
 
         if (typeof results == 'object' && results.length >= 1) {
             response.status(200).send(JSON.stringify(results, null, 1)).end();
@@ -41,7 +42,7 @@ app.post('/',
     async (request, response) => {
         const post = request.body;
         try {
-            saveRelations( post ).then( apiResponse => { 
+            await saveRelations( post ).then( apiResponse => { 
                 response.status(apiResponse.statusCode).send(apiResponse.statusMessage).end();
             });
         } catch (error) {
